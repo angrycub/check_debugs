@@ -1,0 +1,73 @@
+#! /bin/bash
+
+echo "Creating Combined console.log."
+for I in *-riak-debug; do NODE=${I//-riak-debug/}; echo "	Processing ${NODE}..."; for J in {$I/logs/platform_log_dir/console.log,$I/logs/platform_log_dir/console.log.?}; do sed -n -e '/^201/!{H;d;};/^201/{x;s/\n/ /g;p;};${x;s/\n/ /g;p;}' $J | awk '!/^$/{print $1"T"$2,"'${NODE}'",$0}' | sed 's/\([^ ]*\) \([^ ]*\) \([^ ]*\) \([^ ]*\) \(.*\)/\1 \2 \5/' >> temp.log ; done; done; sort temp.log > combined_console.log;rm temp.log;
+
+echo "Creating Combined error.log."
+for I in *-riak-debug; do NODE=${I//-riak-debug/}; echo "	Processing ${NODE}..."; for J in {$I/logs/platform_log_dir/error.log,$I/logs/platform_log_dir/error.log.?}; do sed -n -e '/^201/!{H;d;};/^201/{x;s/\n/ /g;p;};${x;s/\n/ /g;p;}' $J | awk '!/^$/{print $1"T"$2,"'${NODE}'",$0}' | sed 's/\([^ ]*\) \([^ ]*\) \([^ ]*\) \([^ ]*\) \(.*\)/\1 \2 \5/' >> temp.log ; done; done; sort temp.log > combined_error.log;rm temp.log;
+
+echo "Checking for LevelDB Compaction Errors."
+find . -name "LOG" -exec grep -l 'Compaction error' {} \;
+
+echo "Checking for LevelDB Stalls."
+find . -name "LOG" -exec grep -l 'waiting' {} \; | wc -l 
+
+echo "Fetching Non-Zero Swappiness Information."
+grep -s -H 'swappiness' */commands/sysctl_linux | grep -v "vm.swappiness = 0" | awk '{print    $0}'
+grep -s -H 'swappiness' */commands/sysctl | grep -v "vm.swappiness = 0" | awk '{print    $0}'
+
+echo "Looking for Non-Zero Overcommit Strategies."
+grep -s -H 'overcommit_memory' */commands/sysctl_linux | grep -v "vm.overcommit_memory = 0" | awk '{print    $0}'
+grep -s -H 'overcommit_memory' */commands/sysctl | grep -v "vm.overcommit_memory = 0" | awk '{print    $0}'
+
+echo "Looking for OOM killer Activity"
+grep -s -H 'oom-killer' */commands/dmesg | grep "invoked oom-killer" | awk '{print    $0}'
+grep -s -H 'oom-killer' */commands/messages | grep "invoked oom-killer" | awk '{print    $0}'
+
+echo "Looking for Nodes and Drives set to CFQ."
+grep -B1 '\[cfq\]' */commands/schedulers | grep -v '\[cfq\]' | grep -v "\-\-" | awk -F"-" '{print "    ",$1,"   ",$4}' | sort
+
+echo "Counting Large Objects in Logfiles."
+grep -i "Large Object" combined_console.log > large_object.log
+wc -l large_object.log
+
+echo "Checking for potential AAE Hashtree Corruption"
+grep -i "Corruption" combined_console.log | grep -v CRASH | awk '{print $2" "$5}' | sort -u | sed s/://g  > corruption.log
+wc -l corruption.log
+
+echo "Counting Large Objects in Logfiles."
+grep -i "Too many siblings" combined_console.log > siblings.log
+wc -l siblings.log
+
+echo "Checking for file handle exhaustion."
+grep "emfiles" combined_error.log | wc -l
+
+echo "Checking for Erlang resource exhaustion."
+grep "system_limit" combined_error.log | wc -l
+
+echo "Removing Spammy Log Events."
+grep -v "Too many siblings" combined_console.log | 
+    grep -v "Unrecognized message" |
+    grep -v "perhaps_log_throttle_change" |
+    grep -v "Heartbeat is misconfigured" |
+    grep -v "monitor long_schedule" |
+    grep -v "{shutdown,max_concurrency}"|
+    grep -v "There's no NAT mapping"  > combined_console.log.nospam
+
+echo "Crosswalking Node to Hostname"
+rm Node_to_Hostname_Crosswalk.txt
+for I in *-riak-debug 
+    do 
+        NODE=${I//-riak-debug/}
+        echo "	Crosswalking ${NODE}..."
+        echo "$NODE `cat $I/commands/hostname`" >> Node_to_Hostname_Crosswalk.txt
+    done 
+
+echo "Crosswalking Node to HTTP Listener IPs"
+rm Node_to_HTTP_Crosswalk.txt
+for I in *-riak-debug 
+    do 
+        NODE=${I//-riak-debug/} 
+        echo "	Crosswalking ${NODE}..." 
+        echo "$NODE `grep ^listener.http $I/config/riak.conf`" >> Node_to_HTTP_Crosswalk.txt
+    done 
