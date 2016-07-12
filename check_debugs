@@ -53,3 +53,21 @@ grep -v "Too many siblings" combined_console.log |
     grep -v "monitor long_schedule" |
     grep -v "{shutdown,max_concurrency}"|
     grep -v "There's no NAT mapping"  > combined_console.log.nospam
+
+echo "Crosswalking Node to Hostname"
+rm Node_to_Hostname_Crosswalk.txt
+for I in *-riak-debug 
+    do 
+        NODE=${I//-riak-debug/}
+        echo "    Crosswalking ${NODE}..."
+        echo "$NODE `cat $I/commands/hostname`" >> Node_to_Hostname_Crosswalk.txt
+    done 
+
+echo "Crosswalking Node to HTTP Listener IPs"
+rm Node_to_HTTP_Crosswalk.txt
+for I in *-riak-debug 
+    do 
+        NODE=${I//-riak-debug/} 
+        echo "    Crosswalking ${NODE}..." 
+        echo "$NODE `grep ^listener.http $I/config/riak.conf`" >> Node_to_HTTP_Crosswalk.txt
+    done 
