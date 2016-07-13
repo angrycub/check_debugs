@@ -15,9 +15,14 @@ check_debugs is a bash script that performs some pre-analysis to the folder stru
 ## What it creates
 
 **combined_console.log** - A combination of all of the console logs files and their rotations from every node in timestamp order 
+
 **combined_console.log.nospam** - **combined_console.log** with some of the more spammy log events removed.
+
 **combined_error.log** - A combination of all of the error logs files and their rotations from every node in timestamp order 
+
 **corruption.log** - A list of all the AAE vnodes indicating corruption
+
 **large_object.log** - A list of all of the objects logged as being large objets.
+
 **siblings.log** - A list of all of the objects with high sibling counts.
 ```
