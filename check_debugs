@@ -35,7 +35,7 @@ echo "Checking for potential AAE Hashtree Corruption"
 grep -i "Corruption" combined_console.log | grep -v CRASH | awk '{print $2" "$5}' | sort -u | sed s/://g  > corruption.log
 wc -l corruption.log
 
-echo "Counting Large Objects in Logfiles."
+echo "Counting sibling messages in Logfiles."
 grep -i "Too many siblings" combined_console.log > siblings.log
 wc -l siblings.log
 
